@@ -43,7 +43,7 @@ class PositionalEncoding(nn.Module):
         # register as a buffer
         self.register_buffer('positional_encoding', pe)
 
-    def forward(self, x): # x -> (batch, seq_len, d_model)
+    def forward(self, x): # x -> (batch_size, seq_len, dim_model)
         x = x + (self.pe[:, :x.shape[1], :]).requires_grad_(False) 
         return self.dropout(x)
         

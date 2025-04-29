@@ -48,13 +48,13 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
         
 
-class LayerNormalization(nn.Module): # can also use layer_norm = nn.LayerNorm(dim_model)
+class LayerNormalization(nn.Module): # can also use layer_norm = nn.LayerNorm(normalized_shape=features)(x)
 
-    def __init__(self, eps=10**-6):
+    def __init__(self, features, eps=10**-6):
         super().__init__()
         self.eps = eps
-        self.alpha = nn.Parameter(torch.ones(1)) # multiplied
-        self.bias = nn.Parameter(torch.zeros(1)) # added
+        self.alpha = nn.Parameter(torch.ones(features)) # multiplied
+        self.bias = nn.Parameter(torch.zeros(features)) # added
 
     def forward(self, x):
         mean = x.mean(dim=-1, keepdim=True)
@@ -63,7 +63,7 @@ class LayerNormalization(nn.Module): # can also use layer_norm = nn.LayerNorm(di
         return layernorm
     
 
-class FeedForwardBlock(nn.Module):
+class FeedForward(nn.Module):
     
     def __init__(self, dim_model, dim_ff, dropout):
         super().__init__()
@@ -134,5 +134,29 @@ class MultiHeadAttention(nn.Module):
         attention = self.w_o(attention) # attention -> (batch_size, seq_len, dim_model)
 
         return attention
+    
+
+class ResidualConnection(nn.Module):
+
+    def __init__(self, features, dropout):
+        super().__init__()
+        self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(normalized_shape=features)
+
+    def forward(self, x, sublayer):
+        residual_connection = x + self.dropout(sublayer(self.norm(x)))
+        return residual_connection
+    
+
+class EncoderBlock(nn.Module):
+
+    def __init__(self, self_attention: MultiHeadAttention, feed_forward: FeedForward, features: int, dropout: float):
+        super().__init__()
+        self.self_attention = self_attention
+        self.feed_forward = feed_forward
+        self.residual_connections = nn.ModuleList([ResidualConnection(features, dropout) for _ in range(2)])
+
+    def forward(self):
+        pass
     
 

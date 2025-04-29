@@ -77,3 +77,62 @@ class FeedForwardBlock(nn.Module):
         return feedforward
     
 
+class MultiHeadAttention(nn.Module):
+    
+    def __init__(self, dim_model, num_head, dropout):
+        super().__init__()
+        self.dim_model = dim_model
+        self.num_head = num_head
+        # make sure that dim_model is divisible by num_head
+        assert dim_model % num_head == 0, "dim_model is not divisible by num_head"
+
+        self.d_k = dim_model // num_head # dimension of vector for each head
+        self.w_q = nn.Linear(dim_model, dim_model, bias=False) # Wq
+        self.w_k = nn.Linear(dim_model, dim_model, bias=False) # Wk
+        self.w_v = nn.Linear(dim_model, dim_model, bias=False) # Wv
+        self.w_o = nn.Linear(dim_model, dim_model, bias=False) # Wo
+        self.dropout = nn.Dropout(dropout)
+
+    @staticmethod
+    def attention(query, key, value, mask, dropout):
+        # query, key, value -> (batch_size, num_head, seq_len, d_k)
+        d_k = query.shape[-1]
+        # calculate attention_scores
+        attention_scores = (query @ key.transpose(-2, -1)) / math.sqrt(d_k) # attention_scores -> (batch_size, num_head, seq_len, seq_len)
+        # apply mask
+        if mask is not None:
+            attention_scores.masked_fill_(mask==0, -1e9)
+        # softmax
+        attention_scores = attention_scores.softmax(dim=-1)
+        # dropout
+        if dropout is not None:
+            attention_scores = dropout(attention_scores)
+        # calculate attention
+        attention = attention_scores @ value # attention -> (batch_size, num_head, seq_len, d_k)
+        return attention, attention_scores
+
+    def forward(self, q, k, v, mask):
+        query = self.w_q(q) # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_model)
+        key = self.w_k(k)   # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_model)
+        value = self.w_v(v) # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_model)
+
+        # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, num_head, d_k) -> (batch_size, num_head, seq_len, d_k)
+        query = query.view(query.shape[0], query.shape[1], self.num_head, self.d_k).transpose(1, 2)
+        key = key.view(key.shape[0], key.shape[1], self.num_head, self.d_k).transpose(1, 2)
+        value = value.view(value.shape[0], value.shape[1], self.num_head, self.d_k).transpose(1, 2)
+
+        # calculate attention
+        attention, self.attention_scores = MultiHeadAttention.attention(query, key, value, mask, self.dropout)
+        # attention -> (batch_size, num_head, seq_len, d_k)
+        # attention_scores -> (batch_size, num_head, seq_len, seq_len)
+
+        # combine all the heads together
+        attention = attention.transpose(1, 2).contiguous().view(attention.shape[0], -1, self.num_head * self.d_k)
+        # (batch_size, num_head, seq_len, d_k) -> (batch_size, seq_len, dim_model)
+
+        # multiply by Wo
+        attention = self.w_o(attention) # attention -> (batch_size, seq_len, dim_model)
+
+        return attention
+    
+

@@ -164,11 +164,51 @@ class EncoderBlock(nn.Module):
     
 class Encoder(nn.Module):
     
-    def __init__(self):
+    def __init__(self, features, layers: nn.ModuleList):
         super().__init__()
+        self.layers = layers # self.layers is a ModuleList
+        self.norm = nn.LayerNorm(normalized_shape=features)
 
-    def forward(self):
-        pass
+    def forward(self, x, mask):
+        for layer in self.layers:
+            x = layer(x, mask)
+        output = self.norm(x)
+        return output
     
 
+class DecoderBlock(nn.Module):
+
+    def __init__(self, 
+                 self_attention: MultiHeadAttention, 
+                 cross_attention: MultiHeadAttention, 
+                 feed_forward: FeedForward, 
+                 features: int, 
+                 dropout: float):
+        super().__init__()
+        self.self_attention = self_attention
+        self.cross_attention = cross_attention
+        self.feed_forward = feed_forward
+        self.residual_connections = nn.ModuleList([ResidualConnection(features, dropout) for _ in range(3)])
+
+    def forward(self, x, encoder_output, src_mask, tar_mask): 
+        x = self.residual_connections[0](x, lambda x: self.self_attention(x, x, x, tar_mask))
+        # for cross_attention, query comes from decoder input, while key and value come from encoder output
+        x = self.residual_connections[1](x, lambda x: self.cross_attention(x, encoder_output, encoder_output, src_mask))
+        output = self.residual_connections[2](x, self.feed_forward)
+        return output
+
+
+class Decoder(nn.Module):
+
+    def __init__(self, features, layers: nn.ModuleList):
+        super().__init__()
+        self.layers = layers # self.layers is a ModuleList
+        self.norm = nn.LayerNorm(normalized_shape=features)
+
+    def forward(self, x, encoder_output, src_mask, tar_mask):
+        for layer in self.layers:
+            x = layer(x, encoder_output, src_mask, tar_mask)
+        output = self.norm(x)
+        return output
+        
 

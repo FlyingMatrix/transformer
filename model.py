@@ -212,3 +212,25 @@ class Decoder(nn.Module):
         return output
         
 
+class ProjectionLayer(nn.Module):
+
+    def __init__(self, dim_model, vocab_size):
+        super().__init__()
+        self.projection_layer = nn.Linear(dim_model, vocab_size)
+
+    def forward(self, x):
+        # here x is the output of decoder with a shape of (batch_size, seq_len, dim_model) 
+        output = self.projection_layer(x) # output -> (batch_size, seq_len, vocab_size)
+        output = torch.softmax(output, dim=-1)
+        return output
+
+
+class Transformer(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self):
+        pass
+
+

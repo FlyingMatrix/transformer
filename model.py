@@ -265,5 +265,69 @@ class Transformer(nn.Module):
         # decoder_output -> (batch_size, seq_len, dim_model)
         output = self.projection_layer(decoder_output)
         return output # output -> (batch_size, seq_len, vocab_size)
+        
+
+def build_transformer(src_vocab_size: int,
+                      tar_vocab_size: int,
+                      src_seq_len: int, # src_seq_len is the maximum length of the source sentence
+                      tar_seq_len: int, # tar_seq_len is the maximum length of the target sentence
+                      dim_model: int=512,
+                      N: int=6,
+                      num_head: int=8,
+                      dropout: float=0.1,
+                      dim_ff: int=2048
+                     ) -> Transformer:
+    
+    # create embedding layers
+    input_embedding = InputEmbedding(dim_model, src_vocab_size)
+    output_embedding = InputEmbedding(dim_model, tar_vocab_size)
+
+    # create positional encoding layers
+    src_positional_encoding = PositionalEncoding(dim_model, src_seq_len, dropout)
+    tar_positional_encoding = PositionalEncoding(dim_model, tar_seq_len, dropout)
+
+    # create encoder blocks
+    encoder_blocks = []
+    for i in range(N):
+        encoder_self_attention = MultiHeadAttention(dim_model, num_head, dropout)
+        encoder_feed_forward = FeedForward(dim_model, dim_ff, dropout)
+        encoder_block = EncoderBlock(encoder_self_attention, encoder_feed_forward, dim_model, dropout)
+        encoder_blocks.append(encoder_block)
+    
+    # create decoder blocks
+    decoder_blocks = []
+    for i in range(N):
+        decoder_self_attention = MultiHeadAttention(dim_model, num_head, dropout)
+        decoder_cross_attention = MultiHeadAttention(dim_model, num_head, dropout)
+        decoder_feed_forward = FeedForward(dim_model, dim_ff, dropout)
+        decoder_block = DecoderBlock(decoder_self_attention,
+                                     decoder_cross_attention,
+                                     decoder_feed_forward,
+                                     dim_model,
+                                     dropout
+                                     )
+        decoder_blocks.append(decoder_block)
+    
+    # create encoder and decoder
+    encoder = Encoder(features=dim_model, layers=encoder_blocks)
+    decoder = Decoder(features=dim_model, layers=decoder_blocks)
+
+    # create projection layer
+    projection_layer = ProjectionLayer(dim_model, tar_vocab_size)
+
+    # create the transformer
+    transformer = Transformer(encoder=encoder,
+                              decoder=decoder,
+                              input_embedding=input_embedding,
+                              output_embedding=output_embedding,
+                              src_positional_encoding=src_positional_encoding,
+                              tar_positional_encoding=tar_positional_encoding,
+                              projection_layer=projection_layer
+                              )
+    
+    # initialize the parameters
+    pass
+
+    return transformer
 
 

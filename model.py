@@ -227,10 +227,43 @@ class ProjectionLayer(nn.Module):
 
 class Transformer(nn.Module):
 
-    def __init__(self):
+    def __init__(self,
+                 encoder: Encoder,
+                 decoder: Decoder,
+                 input_embedding: InputEmbedding,
+                 output_embedding: InputEmbedding,
+                 src_positional_encoding: PositionalEncoding,
+                 tar_positional_encoding: PositionalEncoding,
+                 projection_layer: ProjectionLayer
+                 ):
         super().__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+        self.input_embedding = input_embedding
+        self.output_embedding = output_embedding
+        self.src_positional_encoding = src_positional_encoding
+        self.tar_positional_encoding = tar_positional_encoding
+        self.projection_layer = projection_layer
 
-    def forward(self):
-        pass
+    def encode(self, src, src_mask):
+        # src -> (batch_size, seq_len)
+        src = self.input_embedding(src) # src -> (batch_size, seq_len, dim_model)
+        src = self.src_positional_encoding(src) # src -> (batch_size, seq_len, dim_model)
+        encoder_output = self.encoder(src, src_mask) 
+        # encoder_output -> (batch_size, seq_len, dim_model)
+        return encoder_output
+
+    def decode(self, tar, encoder_output, src_mask, tar_mask):
+        # tar -> (batch_size, seq_len)
+        tar = self.output_embedding(tar) # tar -> (batch_size, seq_len, dim_model)
+        tar = self.tar_positional_encoding(tar) # tar -> (batch_size, seq_len, dim_model)
+        decoder_output = self.decoder(tar, encoder_output, src_mask, tar_mask)
+        # decoder_output -> (batch_size, seq_len, dim_model)
+        return decoder_output
+    
+    def project(self, decoder_output):
+        # decoder_output -> (batch_size, seq_len, dim_model)
+        output = self.projection_layer(decoder_output)
+        return output # output -> (batch_size, seq_len, vocab_size)
 
 

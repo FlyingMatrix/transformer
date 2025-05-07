@@ -326,8 +326,13 @@ def build_transformer(src_vocab_size: int,
                               )
     
     # initialize the parameters
-    pass
+    """
+        This initialization helps with training stability and convergence, 
+        especially in deep networks like Transformers, by preventing vanishing or exploding gradients.
+    """
+    for p in transformer.parameters():
+        if p.dim() > 1: # choose parameters from weight matrix and skip bias vector
+            nn.init.xavier_uniform_(p) # apply Xavier uniform initialization to the parameter p
 
     return transformer
-
 

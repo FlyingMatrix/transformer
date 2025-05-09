@@ -26,9 +26,12 @@ end_of_sentence = "[EOS]"
 special_tokens = [unknown_token, padding_token, start_of_sentence, end_of_sentence]
 
 
-def get_all_sentences():
+def get_all_sentences(dataset, language):
     
-    pass
+    for item in dataset: 
+        # item -> {'id': string, 'translation': dict}
+        # translation -> {"en": "I love you", "it": "Ti amo"}
+        yield item['translation'][language] # yield: iterate (one item at a time) over large datasets
 
 
 def get_tokenizer(config, dataset, language): 
@@ -53,4 +56,10 @@ def get_tokenizer(config, dataset, language):
     else:
         tokenizer = Tokenizer.from_file(str(tokenizer_path))
     return tokenizer
+
+
+def get_dataset(config):
+
+    pass
+
 

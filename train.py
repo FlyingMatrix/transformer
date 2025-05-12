@@ -31,6 +31,9 @@ special_tokens = [unknown_token, padding_token, start_of_sentence, end_of_senten
 def get_all_sentences(dataset, language):
     
     for item in dataset: 
+        # in general, the opus_books dataset is a dictionary structure, so the length of dataset: len(dataset)
+        # https://huggingface.co/datasets/Helsinki-NLP/opus_books
+        # when a language pair is loaded, each item in the dataset is a dictionary:
         # item -> {'id': string, 'translation': dict}
         # translation -> {"en": "I love you", "it": "Ti amo"}
         yield item['translation'][language] # yield: iterate (one item at a time) over large datasets
@@ -76,5 +79,4 @@ def get_dataset(config):
     valid_dataset_size = len(dataset) - train_dataset_size
     train_dataset, valid_dataset = random_split(dataset, [train_dataset_size, valid_dataset_size])
         
-    
 

@@ -35,8 +35,8 @@ class BilingualDataset(Dataset):
 
         # transform the sentences into tokens using tokenizers.Tokenizer.encode() 
         # which returns: .ids -> list of token IDs, .tokens -> list of tokens
-        encoder_input_tokens = self.tokenizer_src.encode(src_sentence).ids # token IDs -> list
-        decoder_input_tokens = self.tokenizer_tar.encode(tar_sentence).ids # token IDs -> list
+        encoder_input_tokens = self.tokenizer_src.encode(src_sentence).ids # token IDs: List
+        decoder_input_tokens = self.tokenizer_tar.encode(tar_sentence).ids # token IDs: List
 
         # add special tokens (sos_token, eos_token and pad_token) to each sentence
         """
@@ -121,13 +121,13 @@ class BilingualDataset(Dataset):
         """
 
         return {
-            "encoder_input": encoder_input, # (seq_len)
-            "decoder_input": decoder_input, # (seq_len)
-            "decoder_label": decoder_label, # (seq_len)
+            "encoder_input": encoder_input, # torch.tensor: (seq_len)
+            "decoder_input": decoder_input, # torch.tensor: (seq_len)
+            "decoder_label": decoder_label, # torch.tensor: (seq_len)
             "src_sentence": src_sentence,
             "tar_sentence": tar_sentence,
-            "encoder_mask": encoder_mask, # (1, 1, seq_len)
-            "decoder_mask": decoder_mask  # (1, seq_len, seq_len)
+            "encoder_mask": encoder_mask, # torch.tensor: (1, 1, seq_len)
+            "decoder_mask": decoder_mask  # torch.tensor: (1, seq_len, seq_len)
         }
 
 

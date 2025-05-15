@@ -13,6 +13,7 @@ def get_config():
         "seq_len": 350,
         "dim_model": 512,
         "data_source": 'opus_books',
-        "language_src": "en",
-        "language_tar": "it"
+        "lang_src": "en",
+        "lang_tar": "it"
     }
+

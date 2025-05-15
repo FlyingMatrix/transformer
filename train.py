@@ -1,12 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import torch
-import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader, random_split
+from model import build_transformer
+from dataset import BilingualDataset, causal_mask
+from config import get_config
 
 import torchtext.datasets as datasets
 from datasets import load_dataset
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader, random_split
+from torch.optim.lr_scheduler import LambdaLR
+
+import warnings
+from tqdm import tqdm
+import os
+from pathlib import Path
 
 # Hugging Face tokenizers
 """
@@ -16,8 +25,6 @@ from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
-
-from pathlib import Path
 
 
 # build special token list
@@ -48,7 +55,7 @@ def get_tokenizer(config, dataset, language):
         > If a token isn't in the vocabulary, it uses the unk_token.
     """
     
-    tokenizer_path = Path(config['tokenizer_file'].format(language))
+    tokenizer_path = Path(config['tokenizer_file'].format(language)) # Path(): convert string into a path object
     
     if not Path.exists(tokenizer_path):
         # create a new tokenizer using the WordLevel model from Hugging Face tokenizers library
@@ -67,7 +74,7 @@ def get_dataset(config):
 
     # get dataset
     dataset = load_dataset(path=f"{config['datasource']}",
-                           name=f"{config['lang_src']}-{config['lang_tar']}",
+                           name=f"{config['lang_src']}-{config['lang_tar']}", # language pair
                            split='train')
 
     # build tokenizers
@@ -79,4 +86,4 @@ def get_dataset(config):
     valid_dataset_size = len(dataset) - train_dataset_size
     train_dataset, valid_dataset = random_split(dataset, [train_dataset_size, valid_dataset_size])
         
-
+    

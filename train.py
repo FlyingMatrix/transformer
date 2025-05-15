@@ -46,7 +46,7 @@ def get_all_sentences(dataset, language):
         yield item['translation'][language] # yield: iterate (one item at a time) over large datasets
 
 
-def get_tokenizer(config, dataset, language): 
+def get_tokenizer(config, dataset, language): # convert sentences in dataset to sequences of token IDs
 
     """
         What the Tokenizer does:
@@ -57,9 +57,9 @@ def get_tokenizer(config, dataset, language):
     
     tokenizer_path = Path(config['tokenizer_file'].format(language)) # Path(): convert string into a path object
     
-    if not Path.exists(tokenizer_path):
+    if not tokenizer_path.exists():
         # create a new tokenizer using the WordLevel model from Hugging Face tokenizers library
-        tokenizer = Tokenizer(WordLevel(unk_token=unknown_token)) # specifies the token as "[UNK]" when not found in the vocabulary
+        tokenizer = Tokenizer(WordLevel(unk_token=unknown_token)) # initialize WordLevel tokenizer
         tokenizer.pre_tokenizer = Whitespace()
         trainer = WordLevelTrainer(special_tokens=special_tokens, min_frequency=2)
         # build the vocabulary
@@ -73,17 +73,59 @@ def get_tokenizer(config, dataset, language):
 def get_dataset(config):
 
     # get dataset
-    dataset = load_dataset(path=f"{config['datasource']}",
-                           name=f"{config['lang_src']}-{config['lang_tar']}", # language pair
-                           split='train')
+    dataset_raw = load_dataset(path=f"{config['datasource']}",
+                               name=f"{config['lang_src']}-{config['lang_tar']}", # language pair
+                               split='train')
 
     # build tokenizers
-    tokenizer_src = get_tokenizer(config, dataset, config['lang_src'])
-    tokenizer_tar = get_tokenizer(config, dataset, config['lang_tar'])
+    tokenizer_src = get_tokenizer(config, dataset_raw, config['lang_src']) # token IDs: List
+    tokenizer_tar = get_tokenizer(config, dataset_raw, config['lang_tar']) # token IDs: List
 
     # split 90% of the dataset for training, 10% for validation
-    train_dataset_size = int(0.9 * len(dataset))
-    valid_dataset_size = len(dataset) - train_dataset_size
-    train_dataset, valid_dataset = random_split(dataset, [train_dataset_size, valid_dataset_size])
+    train_dataset_size = int(0.9 * len(dataset_raw))
+    valid_dataset_size = len(dataset_raw) - train_dataset_size
+    train_dataset_raw, valid_dataset_raw = random_split(dataset_raw, [train_dataset_size, valid_dataset_size])
         
+    train_dataset = BilingualDataset(train_dataset_raw, 
+                                     tokenizer_src, 
+                                     tokenizer_tar, 
+                                     config['lang_src'], 
+                                     config['lang_tar'],
+                                     config['seq_len'])
     
+    valid_dataset = BilingualDataset(valid_dataset_raw, 
+                                     tokenizer_src, 
+                                     tokenizer_tar, 
+                                     config['lang_src'], 
+                                     config['lang_tar'],
+                                     config['seq_len'])
+    
+    # find the maximum length of each sentence in source and target language
+    max_len_src = 0
+    max_len_tar = 0
+
+    for item in dataset_raw:
+        sentence_src = item['translation'][config['lang_src']]
+        sentence_tar = item['translation'][config['lang_tar']]
+
+        ids_src = tokenizer_src.encode(sentence_src).ids
+        ids_tar = tokenizer_tar.encode(sentence_tar).ids
+
+        max_len_src = max(max_len_src, len(ids_src))
+        max_len_tar = max(max_len_tar, len(ids_tar))
+
+    print(f'>>> Max length of source sentence: {max_len_src}')
+    print(f'>>> Max length of target sentence: {max_len_tar}')
+
+    # create dataloader
+    train_dataloader = DataLoader(train_dataset, batch_size=config['batch_size'], shuffle=True) 
+    valid_dataloader = DataLoader(valid_dataset, batch_size=1, shuffle=False)
+
+    return train_dataloader, valid_dataloader, tokenizer_src, tokenizer_tar
+
+
+def get_model():
+    
+    pass
+
+

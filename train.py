@@ -124,8 +124,20 @@ def get_dataset(config):
     return train_dataloader, valid_dataloader, tokenizer_src, tokenizer_tar
 
 
-def get_model():
+def get_model(config, src_vocab_size, tar_vocab_size):
     
+    model = build_transformer(src_vocab_size=src_vocab_size, 
+                              tar_vocab_size=tar_vocab_size, 
+                              src_seq_len=config['seq_len'], 
+                              tar_seq_len=config['seq_len'], 
+                              dim_model=config['dim_model'])
+    return model
+
+
+def train(config):
+
     pass
+
+
 
 

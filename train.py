@@ -3,7 +3,7 @@
 
 from model import build_transformer
 from dataset import BilingualDataset, causal_mask
-from config import get_config
+from config import get_config, get_weights_file_path
 
 import torchtext.datasets as datasets
 from datasets import load_dataset
@@ -66,7 +66,7 @@ def get_tokenizer(config, dataset, language): # convert sentences in dataset to 
         tokenizer.train_from_iterator(get_all_sentences(dataset, language), trainer=trainer)
         tokenizer.save(str(tokenizer_path))
     else:
-        tokenizer = Tokenizer.from_file(str(tokenizer_path))
+        tokenizer = Tokenizer.from_file(str(tokenizer_path)) # tokenizer_{0}.json in config
     return tokenizer
 
 
@@ -147,4 +147,27 @@ def train(config):
         print(f">>> Device memory: {total_memory:.2f} GB")
     device = torch.device(device)
 
+    # make sure the weights folder exists
+    Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
+    train_dataloader, valid_dataloader, tokenizer_src, tokenizer_tar = get_dataset(config)
+
+    model = get_model(config=config,
+                      src_vocab_size=tokenizer_src.get_vocab_size(),
+                      tar_vocab_size=tokenizer_tar.get_vocab_size()).to(device)
+    
+    optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'], eps=1e-9)
+
+    loss = nn.CrossEntropyLoss(ignore_index=tokenizer_src.token_to_id('[PAD]'), 
+                               label_smoothing=0.1).to(device) 
+    """
+        label_smoothing: to prevent the model from becoming overconfident, improve generalization,
+                         reduce overfitting and stabilize training in seq2seq models like Transformers
+    """
+
+    # preload a specific model before training, if the user needs to do so
+    initial_epoch = 0
+    global_step = 0
+    preload = config['preload']
+    
+    

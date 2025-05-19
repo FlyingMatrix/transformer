@@ -136,8 +136,15 @@ def get_model(config, src_vocab_size, tar_vocab_size):
 
 def train(config):
 
-    pass
-
-
+    # device
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f">>> Using device: {device}")
+    if device == "cuda":
+        device_index = torch.cuda.current_device()
+        device_name = torch.cuda.get_device_name(device_index)
+        total_memory = torch.cuda.get_device_properties(device_index).total_memory / 1024 ** 3 # convert to GB
+        print(f">>> Device name: {device_name}")
+        print(f">>> Device memory: {total_memory:.2f} GB")
+    device = torch.device(device)
 
 

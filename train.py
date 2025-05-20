@@ -3,7 +3,7 @@
 
 from model import build_transformer
 from dataset import BilingualDataset, causal_mask
-from config import get_config, get_weights_file_path
+from config import get_config, get_weights_file_path, get_latest_weights_file
 
 import torchtext.datasets as datasets
 from datasets import load_dataset
@@ -166,8 +166,22 @@ def train(config):
     """
 
     # preload a specific model before training, if the user needs to do so
-    initial_epoch = 0
-    global_step = 0
+    initial_epoch = 0 # used to resume training from a particular epoch
+    global_step = 0 # used in logging, learning rate scheduling, or saving checkpoints
     preload = config['preload']
-    
-    
+    model_filename = (
+        get_latest_weights_file(config) if preload == "latest"
+        else get_weights_file_path(config, preload) if preload != None
+        else None        
+    )
+    if model_filename:
+        print(f'>>> Preloading model: {model_filename}')
+        state = torch.load(model_filename)
+        model.load_state_dict(state['model_state_dict'])
+        initial_epoch = state['epoch'] + 1
+        global_step = state['global_step']
+        optimizer.load_state_dict(state['optimizer_state_dict'])
+    else:
+        print('>>> No model to preload, starting from scratch')
+
+

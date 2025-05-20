@@ -23,11 +23,11 @@ def get_config():
     }
 
 
-def get_weights_file_path(config, preload: str):
+def get_weights_file_path(config, epoch: str):
     
     model_folder = f"{config['data_source']}_{config['model_folder']}"
-    model_filename = f"{config['model_basename']}{preload}.pt" 
-    return str(Path('.') / model_folder / model_filename) # "./opus_books_weights/transformer_model_preload.pt"
+    model_filename = f"{config['model_basename']}{epoch}.pt" 
+    return str(Path('.') / model_folder / model_filename) # "./opus_books_weights/transformer_model_epoch.pt"
 
 
 def get_latest_weights_file(config):

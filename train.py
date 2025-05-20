@@ -26,6 +26,8 @@ from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
+from torch.utils.tensorboard import SummaryWriter
+
 
 # build special token list
 unknown_token="[UNK]"
@@ -134,6 +136,11 @@ def get_model(config, src_vocab_size, tar_vocab_size):
     return model
 
 
+def validation():
+
+    pass
+
+
 def train(config):
 
     # device
@@ -165,10 +172,13 @@ def train(config):
                          reduce overfitting and stabilize training in seq2seq models like Transformers
     """
 
+    # Tensorboard
+    writer = SummaryWriter(config['experiment_name'])
+
     # preload a specific model before training, if the user needs to do so
     initial_epoch = 0 # used to resume training from a particular epoch
     global_step = 0 # used in logging, learning rate scheduling, or saving checkpoints
-    preload = config['preload']
+    preload = config['preload'] 
     model_filename = (
         get_latest_weights_file(config) if preload == "latest"
         else get_weights_file_path(config, preload) if preload != None
@@ -182,6 +192,52 @@ def train(config):
         global_step = state['global_step']
         optimizer.load_state_dict(state['optimizer_state_dict'])
     else:
-        print('>>> No model to preload, starting from scratch')
+        print('>>> No model to preload...')
+
+    # training loop
+    for epoch in range(initial_epoch, config['num_epochs']):
+        torch.cuda.empty_cache()
+        model.train()
+
+        batch_iterator = tqdm(train_dataloader, desc=f'>>> Processing epoch {epoch:02d}')
+
+        for batch in batch_iterator:
+            encoder_input = batch['encoder_input'].to(device) # encoder_input -> (batch_size, seq_len)
+            decoder_input = batch['decoder_input'].to(device) # decoder_input -> (batch_size, seq_len)
+            encoder_mask = batch['encoder_mask'].to(device) # encoder_mask -> (batch_size, 1, 1, seq_len)
+            decoder_mask = batch['decoder_mask'].to(device) # decoder_mask -> (batch_size, 1, seq_len, seq_len)
+
+            encoder_output = model.encode(encoder_input, encoder_mask) 
+            # encoder_output -> (batch_size, seq_len, dim_model)
+            decoder_output = model.decode(decoder_input, encoder_output, encoder_mask, decoder_mask)
+            # decoder_output -> (batch_size, seq_len, dim_model)
+            project_output = model.project(decoder_output)
+            # project_output -> (batch_size, seq_len, vocab_size)
+
+            # get labels
+            labels = batch['decoder_label'].to(device) # labels -> (batch_size, seq_len)
+
+            # compute the loss
+            output = output.view(-1, tokenizer_tar.get_vocab_size()) # output -> (batch_size * seq_len, tar_vocab_size)
+            labels = labels.view(-1) # labels -> (batch_size * seq_len)
+            loss = loss(output, labels)
+
+            # log the loss to tensorboard
+            writer.add_scalar('train_loss', loss.item(), global_step)
+            writer.flush()
+
+            # backpropagate the loss and update the weights
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
+
+            # update the global_step
+            global_step += 1
+
+        # run validation after each epoch
+        validation()
+
+        # save the model after each epoch
+              
 
 

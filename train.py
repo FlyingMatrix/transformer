@@ -171,9 +171,37 @@ def greedy_decode(model, src, encoder_mask, tokenizer_src, tokenizer_tar, max_le
     return decoder_input.squeeze(0)
 
 
-def validation():
+def validation(model, valid_dataloader, tokenizer_src, tokenizer_tar, max_len, device, 
+               print_msg, global_step, writer, num_examples=2):
+    
+    model.eval()
+    counter = 0
+    src_texts = []
+    predicted = []
+    expected = []
 
-    pass
+    # get the console window width
+    try:
+        with os.popen('stty size', 'r') as console:
+            console_height, console_width = console.read().split()
+            console_width = int(console_width)
+    except:
+        # if getting console width failed, use 80 as default
+        console_width = 80
+
+    with torch.no_grad():
+        for batch in valid_dataloader:
+            counter += 1
+
+            encoder_input = batch['encoder_input'].to(device) # encoder_input -> (batch_size, seq_len)
+            encoder_mask = batch['encoder_mask'].to(device) # # encoder_mask -> (batch_size, 1, 1, seq_len)
+
+            # check if the batch_size for validation is 1
+            assert encoder_input.size(0) == 1, "batch size must be 1 for validation"
+
+    	     
+
+
 
 
 def train(config):

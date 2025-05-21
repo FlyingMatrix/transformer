@@ -136,6 +136,41 @@ def get_model(config, src_vocab_size, tar_vocab_size):
     return model
 
 
+# greedy_decode: select the next token with the highest probability
+def greedy_decode(model, src, encoder_mask, tokenizer_src, tokenizer_tar, max_len, device): 
+    
+    sos_idx = tokenizer_tar.token_to_id("[SOS]") # start of sentence
+    eos_idx = tokenizer_tar.token_to_id("[EOS]") # end of sentence
+
+    # compute the encoder output
+    encoder_output = model.encode(src, encoder_mask)
+    # initialize the decoder input with the sos token
+    decoder_input = torch.empty(1, 1).fill_(sos_idx).type_as(src).to(device)
+
+    while True:
+        if decoder_input.size(1) == max_len:
+            break
+
+        # build decoder_mask based on the current decoder_input
+        decoder_mask = causal_mask(decoder_input.size(1)).type_as(encoder_mask).to(device)
+        # calculate the output 
+        decoder_output = model.decode(decoder_input, encoder_output, encoder_mask, decoder_mask)
+        project_output = model.project(decoder_output) # project_output -> (batch_size=1, seq_len, vocab_size)
+
+        # get next token
+        prob = project_output[:, -1] # prob -> (batch_size=1, vocab_size)
+        _, next_token = torch.max(prob, dim=1)
+        # concatenate next_token with decoder_input
+        decoder_input = torch.cat(
+            [decoder_input, torch.empty(1, 1).fill_(next_token.item()).type_as(src).to(device)], dim=1
+        )
+
+        if next_token == eos_idx:
+            break
+
+    return decoder_input.squeeze(0)
+
+
 def validation():
 
     pass
@@ -218,7 +253,8 @@ def train(config):
             labels = batch['decoder_label'].to(device) # labels -> (batch_size, seq_len)
 
             # compute the loss
-            output = output.view(-1, tokenizer_tar.get_vocab_size()) # output -> (batch_size * seq_len, tar_vocab_size)
+            output = project_output.view(-1, tokenizer_tar.get_vocab_size()) 
+            # output -> (batch_size * seq_len, tar_vocab_size)
             labels = labels.view(-1) # labels -> (batch_size * seq_len)
             loss = loss(output, labels)
 

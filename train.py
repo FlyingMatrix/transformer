@@ -199,7 +199,11 @@ def validation(model, valid_dataloader, tokenizer_src, tokenizer_tar, max_len, d
             # check if the batch_size for validation is 1
             assert encoder_input.size(0) == 1, "batch size must be 1 for validation"
 
-    	     
+            model_output = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tar, max_len, device) 
+
+            
+
+
 
 
 
@@ -282,18 +286,19 @@ def train(config):
 
             # compute the loss
             output = project_output.view(-1, tokenizer_tar.get_vocab_size()) 
-            # output -> (batch_size * seq_len, tar_vocab_size)
-            labels = labels.view(-1) # labels -> (batch_size * seq_len)
+            # output -> (batch_size * seq_len, tar_vocab_size) -> (N, C)
+            labels = labels.view(-1) # labels -> (batch_size * seq_len) -> (N)
             loss = loss(output, labels)
 
             # log the loss to tensorboard
             writer.add_scalar('train_loss', loss.item(), global_step)
-            writer.flush()
+            # ensure that all scalar values, histograms, images, etc., are written out to the log files
+            writer.flush() 
 
             # backpropagate the loss and update the weights
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad()
+            optimizer.zero_grad() # clear old gradients
+            loss.backward() # backward pass - computes gradients
+            optimizer.step() # update weights
 
             # update the global_step
             global_step += 1

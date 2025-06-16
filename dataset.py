@@ -97,9 +97,11 @@ class BilingualDataset(Dataset):
         assert decoder_input.size(0) == self.seq_len
         assert decoder_label.size(0) == self.seq_len
 
-        # encoder_mask, decoder_mask: to prevent attention to padding tokens during multi-head self-attention
+        # encoder_mask: to prevent attention to padding tokens during multi-head self-attention
         encoder_mask = (encoder_input != self.pad_token).unsqueeze(0).unsqueeze(0).int() # True, False -> 1, 0
         # encoder_mask -> (1, 1, seq_len)
+
+        # decoder_mask: to prevent the model from looking ahead (future tokens must not be attended to)
         decoder_mask = (decoder_input != self.pad_token).unsqueeze(0).int() # (1, seq_len)
         decoder_mask &= causal_mask(decoder_input.size(0)) # (1, seq_len) & (1, seq_len, seq_len) -> (1, seq_len, seq_len)
         # decoder_mask -> (1, seq_len, seq_len)

@@ -194,14 +194,32 @@ def validation(model, valid_dataloader, tokenizer_src, tokenizer_tar, max_len, d
             counter += 1
 
             encoder_input = batch['encoder_input'].to(device) # encoder_input -> (batch_size, seq_len)
-            encoder_mask = batch['encoder_mask'].to(device) # # encoder_mask -> (batch_size, 1, 1, seq_len)
+            encoder_mask = batch['encoder_mask'].to(device) # encoder_mask -> (batch_size, 1, 1, seq_len)
 
             # check if the batch_size for validation is 1
             assert encoder_input.size(0) == 1, "batch size must be 1 for validation"
 
-            model_output = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tar, max_len, device) 
+            model_output = greedy_decode(model, encoder_input, encoder_mask, tokenizer_src, tokenizer_tar, max_len, device) # model_output is token IDs
 
-            
+            source_text = batch["src_sentence"][0]
+            target_text = batch["tar_sentence"][0]
+            model_output_text = tokenizer_tar.decode(model_output.detach().cpu().numpy()) # token IDs -> string
+
+            src_texts.append(source_text)
+            predicted.append(model_output_text)
+            expected.append(target_text)
+
+            print_msg('-' * console_width)
+            print_msg(f"{f'SOURCE: ':>12}{source_text}")
+            print_msg(f"{f'TARGET: ':>12}{target_text}")
+            print_msg(f"{f'PREDICTED: ':>12}{model_output_text}")
+
+            if counter == num_examples:
+                print_msg('-' * console_width)
+                break
+
+        if writer:
+            pass        
 
 
 

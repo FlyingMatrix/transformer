@@ -27,6 +27,7 @@ from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
 from torch.utils.tensorboard import SummaryWriter
+import torchmetrics
 
 
 # build special token list
@@ -219,11 +220,23 @@ def validation(model, valid_dataloader, tokenizer_src, tokenizer_tar, max_len, d
                 break
 
         if writer:
-            pass        
+            # compute the char error rate
+            metric = torchmetrics.CharErrorRate()
+            char_error_rate = metric(predicted, expected)
+            writer.add_scalar('validation char error rate', char_error_rate, global_step)
+            writer.flush() # manually force the writing of any buffered data to the destination (e.g., disk, socket, etc.)
 
+            # compute the word error rate
+            metric = torchmetrics.WordErrorRate()
+            word_error_rate = metric(predicted, expected)
+            writer.add_scalar('validation word error rate', word_error_rate, global_step)
+            writer.flush()
 
-
-
+            # compute the BLEU score
+            metric = torchmetrics.BLEUScore()
+            bleu_score = metric(predicted, expected)
+            writer.add_scalar('validation BLEU score', bleu_score, global_step)
+            writer.flush()        
 
 
 def train(config):

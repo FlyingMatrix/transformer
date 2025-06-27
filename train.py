@@ -335,7 +335,8 @@ def train(config):
             global_step += 1
 
         # run validation after each epoch
-        validation()
+        validation(model, valid_dataloader, tokenizer_src, tokenizer_tar, config['seq_len'], device, 
+                   lambda msg: batch_iterator.write(msg), global_step, writer)
 
         # save the model after each epoch
         model_filename = get_weights_file_path(config, f"{epoch:02d}")

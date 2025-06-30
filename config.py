@@ -41,3 +41,4 @@ def get_latest_weights_file(config):
     weights_files.sort() # in ascending order (by default), which sort the list alphabetically
     return str(weights_files[-1]) 
 
+

@@ -102,8 +102,8 @@ class BilingualDataset(Dataset):
         # encoder_mask -> (1, 1, seq_len)
 
         # decoder_mask: to prevent the model from looking ahead (future tokens must not be attended to)
-        decoder_mask = (decoder_input != self.pad_token).unsqueeze(0).int() # (1, seq_len)
-        decoder_mask &= causal_mask(decoder_input.size(0)) # (1, seq_len) & (1, seq_len, seq_len) -> (1, seq_len, seq_len)
+        decoder_mask = (decoder_input != self.pad_token).unsqueeze(0).int() & causal_mask(decoder_input.size(0)) # (1, seq_len) & (1, seq_len, seq_len)
+
         # decoder_mask -> (1, seq_len, seq_len)
         """
             decoder_mask -> (1, seq_len, seq_len)
@@ -139,4 +139,5 @@ def causal_mask(size): # generate a causal attention mask
     """
     causal_mask = torch.triu(torch.ones((1, size, size), dtype=torch.int), diagonal=1)
     return causal_mask == 0
+
 

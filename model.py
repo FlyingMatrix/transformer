@@ -41,7 +41,7 @@ class PositionalEncoding(nn.Module):
         # add a batch dimension
         pe = pe.unsqueeze(0) # pe -> (1, seq_len, dim_model)
         # register as a buffer
-        self.register_buffer('positional_encoding', pe)
+        self.register_buffer('pe', pe)
 
     def forward(self, x): # x -> (batch_size, seq_len, dim_model)
         x = x + (self.pe[:, :x.shape[1], :]).requires_grad_(False) 
@@ -67,9 +67,9 @@ class FeedForward(nn.Module):
     
     def __init__(self, dim_model, dim_ff, dropout):
         super().__init__()
-        self.linear_1 = nn.Linear(dim_model, dim_ff) # W1 and B1
+        self.linear_1 = nn.Linear(dim_model, dim_ff).cuda() # W1 and B1
         self.dropout = nn.Dropout(dropout)
-        self.linear_2 = nn.Linear(dim_ff, dim_model) # W2 and B2
+        self.linear_2 = nn.Linear(dim_ff, dim_model).cuda() # W2 and B2
 
     def forward(self, x):
         # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_ff) -> (batch_size, seq_len, dim_model)
@@ -87,10 +87,10 @@ class MultiHeadAttention(nn.Module):
         assert dim_model % num_head == 0, "dim_model is not divisible by num_head"
 
         self.d_k = dim_model // num_head # dimension of vector for each head
-        self.w_q = nn.Linear(dim_model, dim_model, bias=False) # Wq
-        self.w_k = nn.Linear(dim_model, dim_model, bias=False) # Wk
-        self.w_v = nn.Linear(dim_model, dim_model, bias=False) # Wv
-        self.w_o = nn.Linear(dim_model, dim_model, bias=False) # Wo
+        self.w_q = nn.Linear(dim_model, dim_model, bias=False).cuda() # Wq
+        self.w_k = nn.Linear(dim_model, dim_model, bias=False).cuda() # Wk
+        self.w_v = nn.Linear(dim_model, dim_model, bias=False).cuda() # Wv
+        self.w_o = nn.Linear(dim_model, dim_model, bias=False).cuda() # Wo
         self.dropout = nn.Dropout(dropout)
 
     @staticmethod
@@ -113,7 +113,7 @@ class MultiHeadAttention(nn.Module):
 
     def forward(self, q, k, v, mask):
         query = self.w_q(q) # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_model)
-        key = self.w_k(k)   # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_model)
+        key = self.w_k(k) # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_model)
         value = self.w_v(v) # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, dim_model)
 
         # (batch_size, seq_len, dim_model) -> (batch_size, seq_len, num_head, d_k) -> (batch_size, num_head, seq_len, d_k)
@@ -141,7 +141,8 @@ class ResidualConnection(nn.Module):
     def __init__(self, features, dropout):
         super().__init__()
         self.dropout = nn.Dropout(dropout)
-        self.norm = nn.LayerNorm(normalized_shape=features)
+        self.norm = nn.LayerNorm(normalized_shape=features).cuda()
+        
 
     def forward(self, x, sublayer): # here sublayer is a function
         residual_connection = x + self.dropout(sublayer(self.norm(x)))
@@ -335,4 +336,5 @@ def build_transformer(src_vocab_size: int,
             nn.init.xavier_uniform_(p) # apply Xavier uniform initialization to the parameter p
 
     return transformer
+
 

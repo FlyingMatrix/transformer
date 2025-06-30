@@ -6,7 +6,6 @@ from dataset import BilingualDataset, causal_mask
 from config import get_config, get_weights_file_path, get_latest_weights_file
 
 import torchtext.datasets as datasets
-from datasets import load_dataset
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader, random_split
@@ -17,17 +16,15 @@ from tqdm import tqdm
 import os
 from pathlib import Path
 
-# Hugging Face tokenizers
-"""
-    Hugging Face tokenizers best for: Transformer-based models (BERT, GPT, etc.)
-"""
+# Huggingface datasets and tokenizers
+from datasets import load_dataset
 from tokenizers import Tokenizer
 from tokenizers.models import WordLevel
 from tokenizers.trainers import WordLevelTrainer
 from tokenizers.pre_tokenizers import Whitespace
 
-from torch.utils.tensorboard import SummaryWriter
 import torchmetrics
+from torch.utils.tensorboard import SummaryWriter
 
 
 # build special token list
@@ -76,7 +73,7 @@ def get_tokenizer(config, dataset, language): # convert sentences in dataset to 
 def get_dataset(config):
 
     # get dataset
-    dataset_raw = load_dataset(path=f"{config['datasource']}",
+    dataset_raw = load_dataset(path=f"{config['data_source']}",
                                name=f"{config['lang_src']}-{config['lang_tar']}", # language pair
                                split='train')
 
@@ -253,13 +250,17 @@ def train(config):
     device = torch.device(device)
 
     # make sure the weights folder exists
-    Path(f"{config['datasource']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
+    Path(f"{config['data_source']}_{config['model_folder']}").mkdir(parents=True, exist_ok=True)
 
     train_dataloader, valid_dataloader, tokenizer_src, tokenizer_tar = get_dataset(config)
 
     model = get_model(config=config,
                       src_vocab_size=tokenizer_src.get_vocab_size(),
-                      tar_vocab_size=tokenizer_tar.get_vocab_size()).to(device)
+                      tar_vocab_size=tokenizer_tar.get_vocab_size())
+    model = model.to(device)
+
+    for name, param in model.named_parameters():
+        print(f">>> {name}: {param.device}")
     
     optimizer = torch.optim.Adam(model.parameters(), lr=config['learning_rate'], eps=1e-9)
 
@@ -319,16 +320,16 @@ def train(config):
             output = project_output.view(-1, tokenizer_tar.get_vocab_size()) 
             # output -> (batch_size * seq_len, tar_vocab_size) -> (N, C)
             labels = labels.view(-1) # labels -> (batch_size * seq_len) -> (N)
-            loss = loss(output, labels)
+            _loss = loss(output, labels)
 
             # log the loss to tensorboard
-            writer.add_scalar('train_loss', loss.item(), global_step)
+            writer.add_scalar('train_loss', _loss.item(), global_step)
             # ensure that all scalar values, histograms, images, etc., are written out to the log files
             writer.flush() 
 
             # backpropagate the loss and update the weights
             optimizer.zero_grad() # clear old gradients
-            loss.backward() # backward pass - computes gradients
+            _loss.backward() # backward pass - computes gradients
             optimizer.step() # update weights
 
             # update the global_step

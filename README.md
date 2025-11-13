@@ -1,2 +1,2 @@
 # Transformer
-A pytorch implementation of Transformer model
+A pytorch implementation of the Transformer model
